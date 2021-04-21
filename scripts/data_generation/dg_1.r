@@ -8,6 +8,7 @@
 
 #rm(list=ls())
 #LS_FILES_TO_RUN = c(1,2)
+consensus <- 8
 
 require(raster)
 require(gitignore)
@@ -60,7 +61,7 @@ LSNAME_MAT <- vector()
 
 # Instead of downloading full directory, loop scene-by-scene using manifest file...
 LSurls <- read.delim(file="data/Practice_Manifest.txt", header=F, sep = "\n")
-nLSurls <- length(LS_FILES_TO_RUN)
+nLSurls <- length(LSurls[,1])
 
 ## To tst by running just scene 1, can use:
 #LSurl = "https://www.dropbox.com/sh/3c3clh6em4iyd5u/AAASKt8Bxai373CkBdX7KJG9a/practice_scenes/LC082200962017012201T1-SC20171128154358.tar.gz?dl=0"
@@ -145,6 +146,10 @@ for (LSurl in LSurls[,1]){
         tile_data <- raster(paste(
           "data/temp/raster_tiles/",tile_metadata$subject_id[k],".gri",sep=""))
 
+        tile_consensus <- tile_data
+        tile_consensus[tile_consensus < consensus] <- 0
+        tile_consensus[tile_consensus >= consensus] <- 1
+
         ## Extract brick subset:
         NRG_data <- brick(NIR,RED,GREEN,
           xmn = tile_metadata$X.tile_LL_x[k],xmx = tile_metadata$X.tile_LR_x[k],
@@ -154,11 +159,16 @@ for (LSurl in LSurls[,1]){
         save(tile_data,file = paste(
           "data/floating_forests_data/",tile_metadata$subject_id[k],
           ".RData",sep=""))
+        ## Save consensus tile data:
+        save(tile_data,file = paste(
+          "data/floating_forests_data/Consensus_",tile_metadata$subject_id[k],
+          ".RData",sep=""))
         ## Save Landsat brick subset:
         save(NRG_data,file = paste(
           "data/landsat_data/",tile_metadata$subject_id[k],
           ".RData",sep=""))
         remove("tile_data","NRG_data")
+
         ## record subject ID, sensor #, and LS filename:
         ID_MAT <- c(ID_MAT,tile_metadata$subject_id[k])
         SENSOR_MAT <- c(SENSOR_MAT,LSID)
