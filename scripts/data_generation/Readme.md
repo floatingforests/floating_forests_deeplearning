@@ -10,5 +10,5 @@ dg_2.r
   
 dg_3.r
   Convert floating forest data to binary raster using consensus threshold of 8, with naming convention:
-  "floating_forests_deeplearning/data/floating_forests_data/{TRAIN/VALID/TEST}/FF_Rasterized_{tileID}.tif""
+  "floating_forests_deeplearning/data/floating_forests_data/{TRAIN/VALID/TEST}/FF_Rasterized_{tileID}.tif"
   
