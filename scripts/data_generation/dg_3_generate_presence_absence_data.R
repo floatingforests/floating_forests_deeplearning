@@ -1,23 +1,25 @@
-# dg_1.r
+# dg_3_generate_presence_absence_data.r
 # Script to read in landsat data scene-by-scene,
-# identify relevant FF tiles, and subsample the
-# landsat scene to each tile in the scene.
+# identify relevant FF subjects, and subsample the
+# landsat scene to each tile for presence/absence subjects.
 # Each subsampled image then masked for land and clouds, and
-# the NIR/Red/Green image stack is saved as a .RData file
+# the NIR/Red/Green image stacks are saved as .RData files
 # with dimensions: (x,y,channel), with naming convention:
-# floating_forests_deeplearning/data/landsat_scenes/landsat_data/{tileID}.RData
+#   floating_forests_deeplearning/data/temp/
+#       presence_absence/landsat_data/{tileID}.RData
+#
+# Henry Houskeeper; updated 1 May 2021
 
 rm(list=ls())
-f <- list.files("data/temp/LS_scene/", include.dirs = F, full.names = T, recursive = T)
-file.remove(f)
-file.remove("data/temp/LS_scene.tar.gz")
+#f <- list.files("data/temp/LS_scene/", include.dirs = F, full.names = T, recursive = T)
+#file.remove(f)
+#file.remove("data/temp/LS_scene.tar.gz")
 
 LS_FILES_TO_RUN = c(1:15) #c(12,13,14,15)
 
-consensus <- 8
+#consensus <- 8
 
 ## Create empty vectors for metadata later:
-Missing_Tiles <- vector()
 ID_MAT <- vector()
 SENSOR_MAT <- vector()
 LSNAME_MAT <- vector()
@@ -26,13 +28,21 @@ PA_MAT <- vector()
 require(raster)
 require(gitignore)
 require(rgdal)
+require(sf)
+require(vroom)
+require(dplyr)
+require(jsonlite)
+require(purrr)
+require(tidyr)
+source("scripts/data_generation/helpers.R")
+source("scripts/data_generation/deparse_raw_data.R")
+options(stringsAsFactors = FALSE)
 
 dir.create("data/temp")
-#dir.create("data/temp/floating_forests_tiles")
-#dir.create("data/temp/landsat_tiles")
+dir.create("data/temp/landsat_data")
+dir.create("data/temp/landsat_data/presence_absence_tiles")
+
 gi_write_gitignore("**/temp/*")
-#gi_write_gitignore("**/floating_forests_data/*")
-#gi_write_gitignore("**/landsat_data/*")
 
 ###########################################################
 #                 Load coastline shapefile                #
@@ -49,29 +59,52 @@ FALK_LAND <- st_read(paste("data/temp/",dir("data/temp/","F*.shp$"),sep=""))
 #          Specify locations of data and metadata         #
 ###########################################################
 
-## Tile metadata obtained from:
-csv_url <- "https://www.dropbox.com/s/9qjuvkqh5wwop1m/ff_relaunch_subjects.csv?dl=1#"
-tile_metadata_full <- read.csv(csv_url,
+#####################################
+#      Presence/Absence data        #
+#####################################
+#subjects <- vroom("floating-forests-subjects.csv",
+#                  delim=",")
+subjects <- read.csv("data/floating-forests-subjects.csv",
+                               header = TRUE)
+
+#subjects <- subjects %>%
+#  filter(workflow_id %in% c(3246, 14705, 11268))
+subjects <- subjects %>%
+  filter(workflow_id %in% c(3246))
+
+## parse json
+subjects <-  subjects %>%
+  mutate(
+    metadata = map(metadata, ~fromJSON(.x) %>%
+                     as_tibble(.name_repair = "minimal")),
+    locations = map(locations, fromJSON)) %>%
+  unnest(locations) %>%
+  mutate(locations = unlist(locations)) %>%
+  unnest(metadata) %>%
+  dplyr::select(subject_id, `#row`:locations)
+
+## save rds file
+#saveRDS(subjects, file = "data/temp/subjects.RDS")
+
+#'-----------------------
+# Falklands Pres_abs ####
+#'-----------------------
+#pa <- vroom("kelp-presence-absence-classifications.csv")
+pa <- read.csv("data/kelp-presence-absence-classifications.csv",
                      header = TRUE)
-# Keep the tiles that either had full (15) classifications, or had no kelp
-tile_metadata <- subset(tile_metadata_full, retirement_reason != "consensus")
-csv_scenes <- gsub('-.*','',tile_metadata$X.scene)
+## deparse JSON
+pa <- pa %>%
+  deparse_swipe_annotation
 
-## Tile data obtained from:
-tile_data <- "https://www.dropbox.com/s/yadishiz4k8008k/falklands_raster_tiles.tar.gz?dl=1"
-## (To Do: update code to only pull the tiles relevant to an individual scene)
-#tile_data <- paste("https://www.dropbox.com/s/yadishiz4k8008k/falklands_raster_tiles.tar.gz?dl=1",
-#                "&file_subpath=%2Fraster_tiles%2F",tile_metadata$subject_id[k],".grd",
-#                sep="")
+##save rds file
+#saveRDS(pa, file = "data/temp/pa.RDS")
 
-print("Downloading Floating Forest Tiles...")
-download.file(tile_data,
-              destfile="data/temp/raster_tiles.tar.gz",
-              method="wget",quiet=TRUE)
-untar("data/temp/raster_tiles.tar.gz",
-      exdir = "data/temp")
-tile_names <- dir("data/temp/raster_tiles")
-tile_names <- unique(substr(tile_names,1, nchar(tile_names)-4))
+#pa_merged <- dplyr::left_join(pa,subjects)
+pa_merged <- merge(pa,subjects,by = "subject_id")
+presence_absence_scenes <- gsub('-.*','',pa_merged$'!scene')
+## remove
+rm(subjects)
+rm(pa)
 
 ###########################################################
 #   Read scene-by-scene through landsat practice scenes   #
@@ -87,18 +120,21 @@ LSurls <- read.delim(file="data/Practice_Manifest.txt", header=F, sep = "\n")
 #LSname <- strsplit(LSurl,"[/,-]")[[1]][8]
 
 for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
-#for (LSurl in LSurls[,1]){
-  #print(LSurl)
+
+  ###########################################################
+  #          Part 1: Preprocess Segmentation Data           #
+  ###########################################################
+
   dummy <- strsplit(LSurl,"/")[[1]][8]
   LSname <- strsplit(dummy,"-")[[1]][1]
   #print(LSname)
-  rm("dummy")
+  rm(dummy)
 
-  i <- grep(LSname,csv_scenes)
+  i <- grep(LSname,presence_absence_scenes)
   if (length(i) > 0) {
 
     ## Extract sensor name:
-    sensor <- tile_metadata$sensor_id[i[1]]
+    sensor <- pa_merged$sensor_id[i[1]]
 
     ## Download LS scene and unzip:
     print(paste("Downloading",LSname,"...",sep=" "))
@@ -159,12 +195,12 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
     GREEN <- raster(GREENname)
 
     NRG <- brick(NIR,RED,GREEN,
-                      xmn = tile_metadata$X.scene_LL_x[i[1]],
-                      xmx = tile_metadata$X.scene_UR_x[i[1]],
-                      ymn = tile_metadata$X.scene_LL_y[i[1]],
-                      ymx = tile_metadata$X.scene_UR_y[i[1]],
+                      xmn = as.numeric(pa_merged$'#scene_corner_UL_x'[i[1]]),
+                      xmx = as.numeric(pa_merged$'#scene_corner_LR_x'[i[1]]),
+                      ymn = as.numeric(pa_merged$'#scene_corner_LR_y'[i[1]]),
+                      ymx = as.numeric(pa_merged$'#scene_corner_UL_y'[i[1]]),
                       crs=CRS(paste("+proj=utm +units=m +zone=",
-                                    tile_metadata$X.utm_zone[i[1]],sep="")))
+                                    pa_merged$'#utm_zone'[i[1]],sep="")))
     ## plot(raster(NRG,layer=1))
 
     ## Reproject coastline shapefile onto landsat scene projection:
@@ -213,68 +249,35 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
 
     for(k in i) {
       j <- j+1
-      print(paste("Processing subject",tile_metadata$subject_id[k],
+      print(paste("Processing subject",pa_merged$subject_id[k],
                 "-- Tile",j,"of",length(i),"in LS scene:",LSname,
                 sep=" "))
 
-      if (length(grep(tile_metadata$subject_id[k],tile_names))>0) {
-        print(paste(
-          "Tile",tile_metadata$subject_id[k],"exists.",sep=" "))
-
         ## Extract Landsat brick subset:
-        tile_extent <- extent(tile_metadata$X.tile_LL_x[k],
-                              tile_metadata$X.tile_UR_x[k],
-                              tile_metadata$X.tile_LL_y[k],
-                              tile_metadata$X.tile_UR_y[k])
+        tile_extent <- extent(as.numeric(pa_merged$'#tile_LL_x'[k]),
+                              as.numeric(pa_merged$'#tile_UR_x'[k]),
+                              as.numeric(pa_merged$'#tile_LL_y'[k]),
+                              as.numeric(pa_merged$'#tile_UR_y'[k]))
         NRG_data <- crop(NRG_masked_land_cloud,tile_extent)
 
-        ## Extract Floating Forests tile:
-        tile_data_10m <- raster(paste(
-          "data/temp/raster_tiles/",tile_metadata$subject_id[k],".gri",sep=""))
-        ## Resample to 30m to match landsat scene:
-        tile_data <- resample(tile_data_10m,NRG_data,method="ngb")
-        ## Convert # annotations per pixel to consensus pixels:
-        tile_consensus <- tile_data
-        tile_consensus[tile_consensus < consensus] <- 0
-        tile_consensus[tile_consensus >= consensus] <- 1
-
-        ## Mask consensus data for land:
-        ## (don't need to crop land since shapefile...)
-        tile_consensus_masked_land <- mask(tile_consensus,
-                                           FALK_LAND_UTM, inverse=TRUE)
-        ## Mask consensus data for cloud:
-        cloud_tile <- crop(CLOUDmask,tile_extent)
-        tile_consensus_masked_land_cloud <- mask(tile_consensus_masked_land,
-                                                 cloud_tile, maskvalue=1, inverse=FALSE)
-
-        ### Save tile data:
-        #save(tile_data,file = paste(
-        #  "data/temp/floating_forests_data/",tile_metadata$subject_id[k],
-        #  ".RData",sep=""))
-
-        ## Save consensus tile data:
-        save(tile_consensus_masked_land_cloud,file = paste(
-          "data/temp/floating_forests_data/Consensus_",tile_metadata$subject_id[k],
-          ".RData",sep=""))
         ## Save Landsat brick subset:
         save(NRG_data,file = paste(
-          "data/temp/landsat_data/",tile_metadata$subject_id[k],
+          "data/temp/presence_absence/landsat_data/",pa_merged$subject_id[k],
           ".RData",sep=""))
-        remove(tile_data,NRG_data,cloud_tile,tile_extent,
-               tile_consensus_masked_land,tile_consensus_masked_land_cloud)
+
+        ## pa is a binary indicating presence (1) or absence (2)
+        ##   based on average swipe outcome:
+        pa <- round(
+              (pa_merged$yes[k])/(pa_merged$yes[k] + pa_merged$no[k])
+                    )
 
         ## record subject ID, sensor #, and LS filename:
-        ID_MAT <- c(ID_MAT,tile_metadata$subject_id[k])
+        PA_MAT <- c(PA_MAT,pa)
         SENSOR_MAT <- c(SENSOR_MAT,LSID)
         LSNAME_MAT <- c(LSNAME_MAT,LSname)
-        PA_MAT <- c(PA_MAT,max(as.matrix(tile_consensus),na.rm=TRUE))
+        ID_MAT <- c(ID_MAT,pa_merged$subject_id[k])
 
-      } else {
-        print(paste(
-          "Tile",tile_metadata$subject_id[k],"does not exist.",sep=" "))
-        ## record that these tiles are missing:
-        Missing_Tiles <- c(Missing_Tiles,tile_metadata$subject_id[k])
-      } ## end if statement checking if tiles exist
+        remove(pa,NRG_data,tile_extent)
 
     } ## end loop through tiles corresponding to scene
 
@@ -283,21 +286,22 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
     file.remove(f)
     file.remove("data/temp/LS_scene.tar.gz")
 
+    remove(QA,CLOUDmask,CLOUDname,MV,MVs,
+           sensor,NRG,FALK_LAND_UTM,
+           NRG_masked_land,NRG_masked_land_cloud,
+           GREEN,GREENname,
+           RED,REDname,
+           NIR,NIRname)
   } ## end if statement checking that >0 FF tiles correspond to scene
 
-  ## Clean up workspace:
-  remove(LSname,QA,CLOUDmask,CLOUDname,
-              NRG_masked_land,NRG_masked_land_cloud,
-              GREEN,GREENname,
-              RED,REDname,
-              NIR,NIRname)
+  remove(LSname,i)
 
 } ## end of loop through scenes in manifest file...
 
 ## Save metadata for the tiles and LS bricks saved in the data directories:
-save(ID_MAT,SENSOR_MAT,LSNAME_MAT,Missing_Tiles,PA_MAT,file = "data/META.RData")
+save(ID_MAT,SENSOR_MAT,LSNAME_MAT,PA_MAT,
+     file = "data/temp/presence_absence/META.RData")
 
 ## Remove the raster tiles from the temp directory:
 f <- list.files("data/temp/raster_tiles/", include.dirs = F, full.names = T, recursive = T)
 dummy <- file.remove(f)
-file.remove("data/temp/raster_tiles.tar.gz")
