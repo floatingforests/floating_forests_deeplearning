@@ -13,7 +13,7 @@
 #  Henry Houskeeper; updated 1 May 2021
 
 rm(list=ls())
-set.seed(137)
+set.seed(134)
 
 require(raster)
 require(gitignore)
@@ -28,6 +28,12 @@ dir.create("data/segmentation/landsat_tiles")
 dir.create("data/segmentation/landsat_tiles/train")
 dir.create("data/segmentation/landsat_tiles/valid")
 dir.create("data/segmentation/landsat_tiles/test")
+
+## Make sure tile directories are empty...
+f <- list.files("data/segmentation/floating_forests_tiles/", include.dirs = F, full.names = T, recursive = T)
+dummy <- file.remove(f)
+f <- list.files("data/segmentation/landsat_tiles/", include.dirs = F, full.names = T, recursive = T)
+dummy <- file.remove(f)
 
 gi_write_gitignore("**/temp/*")
 gi_write_gitignore("**/segmentation/*")
@@ -55,6 +61,8 @@ for (k in 1:length(LSNAMES)) {
 i5 <- sample(grep(5,LSIDS),replace=FALSE)
 i7 <- sample(grep(7,LSIDS),replace=FALSE)
 i8 <- sample(grep(8,LSIDS),replace=FALSE)
+
+#N[i5]
 
 f5 <- head(cumsum(c(0,N[i5])) / sum(N[i5]),-1)
 f7 <- head(cumsum(c(0,N[i7])) / sum(N[i7]),-1)
@@ -160,7 +168,7 @@ for (k in itrain_scenes) {
 }
 
 ############################################
-#      Write tiffs for training set        #
+#      Write tiffs for validation set        #
 ############################################
 
 for (k in ivalid_scenes) {
@@ -197,7 +205,7 @@ for (k in ivalid_scenes) {
 }
 
 ############################################
-#      Write tiffs for training set        #
+#      Write tiffs for test set        #
 ############################################
 
 for (k in itest_scenes) {
