@@ -19,7 +19,7 @@ f <- list.files("data/temp/LS_scene/", include.dirs = F, full.names = T, recursi
 file.remove(f)
 file.remove("data/temp/LS_scene.tar.gz")
 
-LS_FILES_TO_RUN = c(1:15)
+LS_FILES_TO_RUN = c(1:25)
 
 consensus <- 8
 
@@ -73,9 +73,9 @@ tile_data <- "https://www.dropbox.com/s/yadishiz4k8008k/falklands_raster_tiles.t
 #                sep="")
 
 print("Downloading Floating Forest Tiles...")
-download.file(tile_data,
-              destfile="data/temp/raster_tiles.tar.gz",
-              method="wget",quiet=TRUE)
+#download.file(tile_data,
+#              destfile="data/temp/raster_tiles.tar.gz",
+#              method="wget",quiet=TRUE)
 untar("data/temp/raster_tiles.tar.gz",
       exdir = "data/temp")
 tile_names <- dir("data/temp/raster_tiles")
@@ -97,10 +97,25 @@ LSurls <- read.delim(file="data/Practice_Manifest.txt", header=F, sep = "\n")
 for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
   #for (LSurl in LSurls[,1]){
   #print(LSurl)
+
+  if (strsplit(LSurl,"/")[[1]][3] == "www.dropbox.com") {
   dummy <- strsplit(LSurl,"/")[[1]][8]
   LSname <- strsplit(dummy,"-")[[1]][1]
   #print(LSname)
   rm("dummy")
+  } else if (strsplit(LSurl,"/")[[1]][3] == "app.box.com") {
+
+    ## Download LS scene and unzip:
+    print(paste("Downloading a scene from Box...",sep=" "))
+    download.file(LSurl,
+                  destfile="data/temp/LS_scene.tar.gz",
+                  method="wget",quiet=TRUE) #method="libcurl"
+    untar("data/temp/LS_scene.tar.gz",
+          exdir = "data/temp/LS_scene")
+
+    dummy <- strsplit(dir("data/temp/LS_scene","L*.tif")[1],"_")
+    LSname <- paste(dummy[[1]][1],dummy[[1]][3],dummy[[1]][4],"01T1",sep="")
+  } # End determining LSname based on dropbox or box direct downloads.
 
   i <- grep(LSname,csv_scenes)
   if (length(i) > 0) {
@@ -108,6 +123,8 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
     ## Extract sensor name:
     sensor <- tile_metadata$sensor_id[i[1]]
 
+    ## If file from Box, already downloaded LS scene. If from dropbox, need to get it now:
+    if (strsplit(LSurl,"/")[[1]][3] == "www.dropbox.com") {
     ## Download LS scene and unzip:
     print(paste("Downloading",LSname,"...",sep=" "))
     download.file(LSurl,
@@ -115,6 +132,7 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
                   method="wget",quiet=TRUE) #method="libcurl"
     untar("data/temp/LS_scene.tar.gz",
           exdir = "data/temp/LS_scene")
+    }
 
     ## Define filenames for landsat scene
     if (grepl("OLI_TIRS",sensor)) {
@@ -246,6 +264,7 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
         tile_data <- resample(tile_data_10m,NRG_data,method="ngb")
         ## Convert # annotations per pixel to consensus pixels:
         tile_consensus <- tile_data
+        tile_consensus[is.na(tile_consensus)] <- 0
         tile_consensus[tile_consensus < consensus] <- 0
         tile_consensus[tile_consensus >= consensus] <- 1
         remove(tile_data,tile_data_10m)
@@ -273,14 +292,15 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
         save(NRG_data,file = paste(
           "data/temp/segmentation/landsat_data/",tile_metadata$subject_id[k],
           ".RData",sep=""))
-        remove(NRG_data,cloud_tile,tile_extent,
-               tile_consensus_masked_land,tile_consensus_masked_land_cloud)
 
         ## record subject ID, sensor #, and LS filename:
         ID_MAT <- c(ID_MAT,tile_metadata$subject_id[k])
         SENSOR_MAT <- c(SENSOR_MAT,LSID)
         LSNAME_MAT <- c(LSNAME_MAT,LSname)
-        PA_MAT <- c(PA_MAT,max(as.matrix(tile_consensus),na.rm=TRUE))
+        PA_MAT <- c(PA_MAT,max(as.matrix(tile_consensus_masked_land_cloud),na.rm=TRUE))
+
+        remove(NRG_data,cloud_tile,tile_extent,
+               tile_consensus_masked_land,tile_consensus_masked_land_cloud)
 
       } else {
         print(paste(
@@ -303,7 +323,9 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
            RED,REDname,
            NIR,NIRname)
 
-  } ## end if statement checking that >0 FF tiles correspond to scene
+  } else {
+    print(paste("Scene ",LSname," had no segmentation tiles...",sep=""))
+    } ## end if statement checking that >0 FF tiles correspond to scene
 
   remove(i,LSname)
 
@@ -316,4 +338,4 @@ save(ID_MAT,SENSOR_MAT,LSNAME_MAT,Missing_Tiles,PA_MAT,
 ## Remove the raster tiles from the temp directory:
 f <- list.files("data/temp/raster_tiles/", include.dirs = F, full.names = T, recursive = T)
 dummy <- file.remove(f)
-file.remove("data/temp/raster_tiles.tar.gz")
+#file.remove("data/temp/raster_tiles.tar.gz")
