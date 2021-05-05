@@ -4,3 +4,11 @@ ESPA*
 LC08*
 LE07*
 LT05*
+.Rproj.user
+data/presence_absence/META.RData
+data/presence_absence/landsat_tiles/
+data/segmentation/META.RData
+data/segmentation/floating_forests_tiles/
+data/segmentation/landsat_tiles/
+.Rhistory
+__MACOSX
