@@ -8,14 +8,17 @@
 #   floating_forests_deeplearning/data/temp/
 #       presence_absence/landsat_data/{tileID}.RData
 #
-# Henry Houskeeper; updated 1 May 2021
+# Henry Houskeeper; updated 6 May 2021
 
 rm(list=ls())
+f <- list.files("data/temp/presence_absence/landsat_data/", include.dirs = F, full.names = T, recursive = T)
+file.remove(f)
+
 #f <- list.files("data/temp/LS_scene/", include.dirs = F, full.names = T, recursive = T)
 #file.remove(f)
 #file.remove("data/temp/LS_scene.tar.gz")
 
-LS_FILES_TO_RUN = c(1:15) #c(12,13,14,15)
+LS_FILES_TO_RUN = c(1:25) #c(12,13,14,15)
 
 #consensus <- 8
 
@@ -42,6 +45,8 @@ dir.create("data/temp")
 dir.create("data/temp/landsat_data")
 dir.create("data/temp/landsat_data/presence_absence_tiles")
 
+#dir.create("raw_data")
+
 gi_write_gitignore("**/temp/*")
 
 ###########################################################
@@ -64,8 +69,22 @@ FALK_LAND <- st_read(paste("data/temp/",dir("data/temp/","F*.shp$"),sep=""))
 #####################################
 #subjects <- vroom("floating-forests-subjects.csv",
 #                  delim=",")
-subjects <- read.csv("data/floating-forests-subjects.csv",
-                               header = TRUE)
+#subjects <- read.csv("raw_data/floating-forests-subjects.csv",
+#                               header = TRUE)
+
+# See: https://www.asifkamboh.com/2020/11/how-to-create-box-direct-download-link.html
+#https://app.box.com/index.php?rm=box_download_shared_file&shared_name=[SHARED-NAME]&file_id=f_[FILE-ID]
+#https://ucla.app.box.com/file/806372914052?s=4bspafu5x1vt79exwgyr9unrmb6ojx3k
+subjectsURL <- "https://app.box.com/index.php?rm=box_download_shared_file&shared_name=4bspafu5x1vt79exwgyr9unrmb6ojx3k&file_id=f_806372914052"
+download.file(subjectsURL,
+              destfile="data/temp/floating-forests-subjects.csv.zip",
+              method="wget",quiet=TRUE)
+unzip("data/temp/floating-forests-subjects.csv.zip",
+      exdir = "data/temp")
+subjects <- read.csv("data/temp/floating-forests-subjects.csv",
+                     header = TRUE)
+dummy <- file.remove("data/temp/floating-forests-subjects.csv")
+dummy <- file.remove("data/temp/floating-forests-subjects.csv.zip")
 
 #subjects <- subjects %>%
 #  filter(workflow_id %in% c(3246, 14705, 11268))
@@ -90,8 +109,23 @@ subjects <-  subjects %>%
 # Falklands Pres_abs ####
 #'-----------------------
 #pa <- vroom("kelp-presence-absence-classifications.csv")
-pa <- read.csv("data/kelp-presence-absence-classifications.csv",
+#pa <- read.csv("raw_data/kelp-presence-absence-classifications.csv",
+#                     header = TRUE)
+
+# See: https://www.asifkamboh.com/2020/11/how-to-create-box-direct-download-link.html
+#https://ucla.app.box.com/file/806374332276?s=4fj687z7h7jfs9sxmnf5bmxsnt5dwb0n
+#https://app.box.com/index.php?rm=box_download_shared_file&shared_name=[SHARED-NAME]&file_id=f_[FILE-ID]
+paURL <- "https://app.box.com/index.php?rm=box_download_shared_file&shared_name=4fj687z7h7jfs9sxmnf5bmxsnt5dwb0n&file_id=f_806374332276"
+download.file(paURL,
+              destfile="data/temp/kelp-presence-absence-classifications.csv.zip",
+              method="wget",quiet=TRUE)
+unzip("data/temp/kelp-presence-absence-classifications.csv.zip",
+      exdir = "data/temp")
+pa <- read.csv("data/temp/kelp-presence-absence-classifications.csv",
                      header = TRUE)
+dummy <- file.remove("data/temp/kelp-presence-absence-classifications.csv")
+dummy <- file.remove("data/temp/kelp-presence-absence-classifications.csv.zip")
+
 ## deparse JSON
 pa <- pa %>%
   deparse_swipe_annotation
@@ -121,14 +155,31 @@ LSurls <- read.delim(file="data/Practice_Manifest.txt", header=F, sep = "\n")
 
 for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
 
+  f <- list.files("data/temp/LS_scene/", include.dirs = F, full.names = T, recursive = T)
+  file.remove(f)
+
   ###########################################################
-  #          Part 1: Preprocess Segmentation Data           #
+  #         Part 1: Preprocess Presence/Absence Data        #
   ###########################################################
 
-  dummy <- strsplit(LSurl,"/")[[1]][8]
-  LSname <- strsplit(dummy,"-")[[1]][1]
-  #print(LSname)
-  rm(dummy)
+  if (strsplit(LSurl,"/")[[1]][3] == "www.dropbox.com") {
+    dummy <- strsplit(LSurl,"/")[[1]][8]
+    LSname <- strsplit(dummy,"-")[[1]][1]
+    #print(LSname)
+    rm("dummy")
+  } else if (strsplit(LSurl,"/")[[1]][3] == "app.box.com") {
+
+    ## Download LS scene and unzip:
+    print(paste("Downloading a scene from Box...",sep=" "))
+    download.file(LSurl,
+                  destfile="data/temp/LS_scene.tar.gz",
+                  method="wget",quiet=TRUE) #method="libcurl"
+    untar("data/temp/LS_scene.tar.gz",
+          exdir = "data/temp/LS_scene")
+
+    dummy <- strsplit(dir("data/temp/LS_scene","L*.tif")[1],"_")
+    LSname <- paste(dummy[[1]][1],dummy[[1]][3],dummy[[1]][4],"01T1",sep="")
+  } # End determining LSname based on dropbox or box direct downloads.
 
   i <- grep(LSname,presence_absence_scenes)
   if (length(i) > 0) {
@@ -136,13 +187,23 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
     ## Extract sensor name:
     sensor <- pa_merged$sensor_id[i[1]]
 
+    ## If file from Box, already downloaded LS scene. If from dropbox, need to get it now:
+    if (strsplit(LSurl,"/")[[1]][3] == "www.dropbox.com") {
+      ## Download LS scene and unzip:
+      print(paste("Downloading",LSname,"...",sep=" "))
+      download.file(LSurl,
+                    destfile="data/temp/LS_scene.tar.gz",
+                    method="wget",quiet=TRUE) #method="libcurl"
+      untar("data/temp/LS_scene.tar.gz",
+            exdir = "data/temp/LS_scene")
+    }
     ## Download LS scene and unzip:
-    print(paste("Downloading",LSname,"...",sep=" "))
-    download.file(LSurl,
-      destfile="data/temp/LS_scene.tar.gz",
-      method="wget",quiet=TRUE) #method="libcurl"
-    untar("data/temp/LS_scene.tar.gz",
-      exdir = "data/temp/LS_scene")
+    #print(paste("Downloading",LSname,"...",sep=" "))
+    #download.file(LSurl,
+    #  destfile="data/temp/LS_scene.tar.gz",
+    #  method="wget",quiet=TRUE) #method="libcurl"
+    #untar("data/temp/LS_scene.tar.gz",
+    #  exdir = "data/temp/LS_scene")
 
     ## Define filenames for landsat scene
     if (grepl("OLI_TIRS",sensor)) {
@@ -242,6 +303,7 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
     ## plot(CLOUDmask)
     NRG_masked_land_cloud <- mask(NRG_masked_land, CLOUDmask,
                                   maskvalue=1, inverse=FALSE)
+
     ## plot(raster(NRG_masked_land_cloud,layer=1))
 
     ## loop through each FF tile:
@@ -279,7 +341,7 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
 
         remove(pa,NRG_data,tile_extent)
 
-    } ## end loop through tiles corresponding to scene
+    } ## end loop through k tiles corresponding to scene
 
     ## Remove LS scene from temp directory:
     f <- list.files("data/temp/LS_scene/", include.dirs = F, full.names = T, recursive = T)
@@ -287,7 +349,7 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
     file.remove("data/temp/LS_scene.tar.gz")
 
     remove(QA,CLOUDmask,CLOUDname,MV,MVs,
-           sensor,NRG,FALK_LAND_UTM,
+           sensor,NRG,FALK_LAND_UTM,LSID,
            NRG_masked_land,NRG_masked_land_cloud,
            GREEN,GREENname,
            RED,REDname,
@@ -300,8 +362,5 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
 
 ## Save metadata for the tiles and LS bricks saved in the data directories:
 save(ID_MAT,SENSOR_MAT,LSNAME_MAT,PA_MAT,
-     file = "data/temp/presence_absence/META.RData")
+     file = "data/presence_absence/META.RData")
 
-## Remove the raster tiles from the temp directory:
-f <- list.files("data/temp/raster_tiles/", include.dirs = F, full.names = T, recursive = T)
-dummy <- file.remove(f)
