@@ -41,6 +41,13 @@ gi_write_gitignore("**/presence_absence/*")
 #########################################
 load("data/presence_absence/META.RData")
 
+#Nm <- vector()
+#Rm <- vector()
+#Gm <- vector()
+#Ns <- vector()
+#Rs <- vector()
+#Gs <- vector()
+
 LSNAMES <- unique(LSNAME_MAT)
 LSIDS <- vector()
 N <- vector()
