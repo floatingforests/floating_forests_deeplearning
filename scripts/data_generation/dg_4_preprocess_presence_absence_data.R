@@ -8,7 +8,7 @@
 # "floating_forests_deeplearning/data/presence_absence/
 #     landsat_tiles/{train/valid/test}/{yes/no}/{tileID}.tif"
 #
-#  Henry Houskeeper; updated 1 May 2021
+#  Henry Houskeeper; updated 7 May 2021
 
 rm(list=ls())
 set.seed(137)
