@@ -1,3 +1,8 @@
+#'--------------------------------------------------------------------------------
+#' Take presence/absence .Rdata files, and turn them into tifs and assign them
+#' to training, testing, or validation making sure to stratify by yes/no,
+#' sensor, and anything else we want
+#'--------------------------------------------------------------------------------
 
 #libraries
 require(raster)
