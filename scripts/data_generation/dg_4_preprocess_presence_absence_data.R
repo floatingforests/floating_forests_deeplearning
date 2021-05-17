@@ -10,11 +10,12 @@
 #
 #  Henry Houskeeper; updated 7 May 2021
 
+setwd(here::here())
 rm(list=ls())
 set.seed(137)
 
 require(raster)
-require(gitignore)
+#require(gitignore)
 require(sf)
 require(rgdal)
 
