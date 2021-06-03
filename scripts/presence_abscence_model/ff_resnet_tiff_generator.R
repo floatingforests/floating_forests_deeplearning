@@ -146,7 +146,7 @@ base_model <- application_resnet50(weights = 'imagenet',
                                    #drop the classification layers
                                    include_top = FALSE,
                                    #tell it about our data
-                                   input_shape = c(img_width, img_height, 3))
+                                   input_shape = c(img_width, img_height, n_bands))
 
 
 #lock all weights so that we only use pre-trained weights
