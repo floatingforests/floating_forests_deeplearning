@@ -128,17 +128,17 @@ tiff_generator <- function(data, batch_size, img_height, img_width, n_bands) {
 train_gen <- tiff_generator(
   data = train_raw_names,
   batch_size = batch_size,
-  img_width <- img_width,
-  img_height <- img_height,
-  n_bands <- n_bands
+  img_width = img_width,
+  img_height = img_height,
+  n_bands = n_bands
 )
 
 validation_gen <- tiff_generator(
   data = test_raw_names,
   batch_size = batch_size,
-  img_width <- img_width,
-  img_height <- img_height,
-  n_bands <- n_bands
+  img_width = img_width,
+  img_height = img_height,
+  n_bands = n_bands
 )
 
 ## define the pretrained model, here: resnet50
