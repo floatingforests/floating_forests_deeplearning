@@ -191,5 +191,5 @@ hist <- model %>% fit_generator(
 # Save Prelim Model
 #assumes your working directory is the top level project directory
 #will overwrite by default, add overwrite = FALSE if you don't want this behavior
-model %>% save_model_hdf5(paste0('./data/models/model_weights/ff_resnet_pres_abs_', 'dat_path','.h5'))
+model %>% save_model_hdf5(paste0('./models/model_weights/ff_resnet_pres_abs_', 'dat_path','.h5'))
 
