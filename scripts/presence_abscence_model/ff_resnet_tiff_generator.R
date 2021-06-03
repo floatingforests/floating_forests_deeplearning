@@ -1,7 +1,9 @@
 library(tidyverse)
 library(raster)
 library(keras)
+library(tensorflow)
 #Code to take a directory of floating forest subject tiffs and feed them into resnet 50
+setwd(here::here())
 
 #This script assumes data is organized given the following directory structure:
 
