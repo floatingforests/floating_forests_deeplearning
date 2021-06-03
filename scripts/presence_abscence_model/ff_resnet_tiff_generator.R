@@ -1,5 +1,5 @@
 library(tidyverse)
-library(terra)
+library(raster)
 library(keras)
 #Code to take a directory of floating forest subject tiffs and feed them into resnet 50
 
