@@ -182,7 +182,7 @@ model %>% compile(
 hist <- model %>% fit_generator(
   train_gen,
   steps_per_epoch = as.integer(length(train_raw_names)/batch_size),
-  epochs = 1,
+  epochs = 50,
   validation_data = validation_gen,
   validation_steps = as.integer(length(test_raw_names)/batch_size),
   verbose=2
