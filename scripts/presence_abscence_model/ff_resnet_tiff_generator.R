@@ -1,5 +1,5 @@
 library(tidyverse)
-library(raster)
+library(terra)
 library(keras)
 #Code to take a directory of floating forest subject tiffs and feed them into resnet 50
 
@@ -74,7 +74,11 @@ tiff_generator <- function(data,batch_size) {
   function() {
 
     # reset iterator if already seen all data
-    if ((i + batch_size - 1) > nrow(data)) i <<- 1
+    #6/3 update: removing batch size here - as written, it's checking the next next i because it already updates for the next batch in line 92
+    if (i  >= length(data)) {
+      i <<- 1
+      data <<- sample(data, size = length(data), replace = FALSE)
+      }
 
     # grab a number of rows equal to batch size
     #use i to determine the starting row #
@@ -82,7 +86,7 @@ tiff_generator <- function(data,batch_size) {
     #when i is 5, it will take rows 5:10
     #if batch size is > than remaining number of rows, just use i:nrow(data) instead
     #to confirm this behavior, set i to 79 and batch size to 5. rows will be just 79 and 80
-    rows <- c(i:min(i + batch_size - 1, nrow(data)))
+    rows <- c(i:min(i + batch_size - 1, length(data)))
 
     # update to next iteration
     i <<- i + batch_size
@@ -93,6 +97,9 @@ tiff_generator <- function(data,batch_size) {
     #use tiff_to_array to read in each image in the batch
     tiffs <- map(data_subset, tiff_to_array)
     #unlist and transpose
+    #this should be batch size X height x width x bands
+    #future proof - don't hardcode in the number of bands, have it check the input data
+    #arguments for band number, height, width
     x_array <- aperm(array(unlist(tiffs),
                            dim=c(350, 350, 3, length(tiffs))),
                      c(4, 1, 2, 3))
@@ -100,6 +107,7 @@ tiff_generator <- function(data,batch_size) {
     #use filepath_to_label to parse yes/no labels from file paths
     labels <- map(data_subset, filepath_to_label)
     #unlist and transpose
+    #batch size x 1
     y_array <- aperm(array(unlist(labels),
                            dim=c(1, length(labels))),
                      c(2, 1))
@@ -119,12 +127,12 @@ batch_size <- 32
 
 #set up generators
 train_gen <- tiff_generator(
-  data = as.matrix(train_raw_names),
+  data = train_raw_names,
   batch_size = batch_size
 )
 
 validation_gen <- tiff_generator(
-  data = as.matrix(test_raw_names),
+  data = test_raw_names,
   batch_size = batch_size
 )
 
@@ -171,8 +179,14 @@ model %>% compile(
 hist <- model %>% fit_generator(
   train_gen,
   steps_per_epoch = as.integer(length(train_raw_names)/batch_size),
-  epochs = 50,
+  epochs = 1,
   validation_data = validation_gen,
   validation_steps = as.integer(length(test_raw_names)/batch_size),
   verbose=2
 )
+
+# Save Prelim Model
+#assumes your working directory is the top level project directory
+#will overwrite by default, add overwrite = FALSE if you don't want this behavior
+model %>% save_model_hdf5(paste0('./data/model_output/ff_resnet_pres_abs_', 'dat_path','.h5'))
+
