@@ -42,17 +42,22 @@ filepath_to_label<- function(input_path){
 #test
 #test_label <- filepath_to_label(input_path)
 
+#set some params that will be used for creating generators and preparing resnet50
+img_width <- 350
+img_height <- 350
+batch_size <- 32
+n_bands <- 3
 
-#create lists of tiffs within train/test directories
+#set up input and test data
 
+#set input directories
 train_input_dir <- "./data/presence_absence/landsat_tiles/train"
+test_input_dir <- "./data/presence_absence/landsat_tiles/test"
 
+#create vectors of tiff filepaths  within train/test directories
 train_raw_names <- list.files(train_input_dir,
                               recursive = T,
                               full.names = T)
-
-
-test_input_dir <- "./data/presence_absence/landsat_tiles/test"
 
 test_raw_names <- list.files(test_input_dir,
                              recursive = T,
@@ -65,7 +70,7 @@ test_raw_names <- list.files(test_input_dir,
 #element 2: a tensor of labels of dim(batch_size, 1)
 
 
-tiff_generator <- function(data,batch_size) {
+tiff_generator <- function(data, batch_size, img_height, img_width, n_bands) {
 
   # start iterator
   i <- 1
@@ -96,18 +101,14 @@ tiff_generator <- function(data,batch_size) {
 
     #use tiff_to_array to read in each image in the batch
     tiffs <- map(data_subset, tiff_to_array)
-    #unlist and transpose
-    #this should be batch size X height x width x bands
-    #future proof - don't hardcode in the number of bands, have it check the input data
-    #arguments for band number, height, width
+    #unlist and reorder bands to be: batch size X height x width x bands
     x_array <- aperm(array(unlist(tiffs),
-                           dim=c(350, 350, 3, length(tiffs))),
+                           dim=c(img_width, img_height, n_bands, length(tiffs))),
                      c(4, 1, 2, 3))
 
     #use filepath_to_label to parse yes/no labels from file paths
     labels <- map(data_subset, filepath_to_label)
-    #unlist and transpose
-    #batch size x 1
+    #unlist and reorder to be a 1 dimensional array of batch size x 1
     y_array <- aperm(array(unlist(labels),
                            dim=c(1, length(labels))),
                      c(2, 1))
@@ -118,22 +119,24 @@ tiff_generator <- function(data,batch_size) {
 
 }
 
-#set some params that will be used for creating generators and preparing resnet50
 
-img_width <- 350
-img_height <- 350
-batch_size <- 32
 
 
 #set up generators
 train_gen <- tiff_generator(
   data = train_raw_names,
-  batch_size = batch_size
+  batch_size = batch_size,
+  img_width <- img_width,
+  img_height <- img_height,
+  n_bands <- n_bands
 )
 
 validation_gen <- tiff_generator(
   data = test_raw_names,
-  batch_size = batch_size
+  batch_size = batch_size,
+  img_width <- img_width,
+  img_height <- img_height,
+  n_bands <- n_bands
 )
 
 ## define the pretrained model, here: resnet50
