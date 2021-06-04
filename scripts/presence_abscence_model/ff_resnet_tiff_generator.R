@@ -210,6 +210,6 @@ hist <- model %>% fit(
 # Save Prelim Model
 #assumes your working directory is the top level project directory
 #will overwrite by default, add overwrite = FALSE if you don't want this behavior
-model %>% save_model_hdf5(paste0('./models/model_weights/ff_resnet_pres_abs_3_epochs','.h5'))
+model %>% save_model_hdf5(paste0('./models/fit_models/ff_resnet_pres_abs_3_epochs','.h5'))
 
 
