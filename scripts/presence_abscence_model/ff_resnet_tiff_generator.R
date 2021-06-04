@@ -38,11 +38,11 @@ tiff_to_array <- function(input_path){
 filepath_to_label<- function(input_path){
   label <- as.character(str_extract_all(string = input_path, pattern = "yes|no"))
   #encode yes as 1 and no as 0
-  label <- as.numeric(ifelse(label =="Yes",1,0))
+  label <- as.numeric(ifelse(label =="yes",1,0))
 }
 
 #test
-#test_label <- filepath_to_label(input_path)
+test_label <- filepath_to_label("./data/presence_absence/landsat_tiles/train/yes/16192467.tif")
 
 #set some params that will be used for creating generators and preparing resnet50
 img_width <- 350
