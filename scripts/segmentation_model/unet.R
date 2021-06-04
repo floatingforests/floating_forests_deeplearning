@@ -183,10 +183,10 @@ model %>% compile(
 
 model %>% fit(
   train_gen,
-  steps_per_epoch = 2, #as.integer(length(landsat_val_raw_names)/batch_size),
-  epochs = 5,
+  steps_per_epoch = as.integer(length(landsat_val_raw_names)/batch_size),
+  epochs = 10,
   validation_data = validation_gen,
-  validation_steps = 2, #as.integer(length(float_val_raw_names)/batch_size)
+  validation_steps = as.integer(length(float_val_raw_names)/batch_size)
 )
 
 # Save Prelim Model
