@@ -18,5 +18,6 @@ data/presence_absence/landsat_tiles/
 data/segmentation/META.RData
 data/segmentation/floating_forests_tiles/
 data/segmentation/landsat_tiles/
+.h5
 .Rhistory
 __MACOSX
