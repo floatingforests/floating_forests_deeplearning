@@ -4,11 +4,14 @@ library(keras)
 library(tensorflow)
 #Code to take a directory of floating forest subject tiffs and feed them into resnet 50
 setwd(here::here())
+#source data generator functions
+source("./scripts/data_generation/tiff_generator.R")
+
 
 #This script assumes data is organized given the following directory structure:
 
 #data
-#├── test
+#├── valid
 #│   ├── yes
 #│   └── no
 #├── train
@@ -28,6 +31,20 @@ tiff_to_array <- function(input_path){
   image_array <- as.array(r)
 }
 
+
+#this version makes an empty container array of the correct size for unet
+#tiff_to_array <- function(input_path, width = 350, height = 350){
+ # r <- brick(input_path)
+ # image_array <- array(0, c(width+2,
+ #                           height+2,
+ #                           dim(r)[3]))
+ # image_array[1:nrow(r), 1:ncol(r), 1:dim(r)[3]] <- as.array(r)
+
+ # return(image_array)
+#}
+
+
+
 #test
 #test_array <- tiff_to_array("./data/presence_absence/landsat_tiles/train/no/16190277.tif")
 
@@ -42,7 +59,7 @@ filepath_to_label<- function(input_path){
 }
 
 #test
-test_label <- filepath_to_label("./data/presence_absence/landsat_tiles/train/yes/16192467.tif")
+#test_label <- filepath_to_label("./data/presence_absence/landsat_tiles/train/yes/16192467.tif")
 
 #set some params that will be used for creating generators and preparing resnet50
 img_width <- 350
@@ -50,18 +67,18 @@ img_height <- 350
 batch_size <- 32
 n_bands <- 3
 
-#set up input and test data
+#set up input and valid data
 
 #set input directories
 train_input_dir <- "./data/presence_absence/landsat_tiles/train"
-test_input_dir <- "./data/presence_absence/landsat_tiles/test"
+valid_input_dir <- "./data/presence_absence/landsat_tiles/valid"
 
-#create vectors of tiff filepaths  within train/test directories
+#create vectors of tiff filepaths  within train/valid directories
 train_raw_names <- list.files(train_input_dir,
                               recursive = T,
                               full.names = T)
 
-test_raw_names <- list.files(test_input_dir,
+valid_raw_names <- list.files(valid_input_dir,
                              recursive = T,
                              full.names = T)
 
@@ -134,7 +151,7 @@ train_gen <- tiff_generator(
 )
 
 validation_gen <- tiff_generator(
-  data = test_raw_names,
+  data = valid_raw_names,
   batch_size = batch_size,
   img_width = img_width,
   img_height = img_height,
@@ -150,9 +167,9 @@ base_model <- application_resnet50(weights = 'imagenet',
 
 
 #lock all weights so that we only use pre-trained weights
-for (layer in base_model$layers)
+for (layer in base_model$layers){
   layer$trainable <- FALSE
-
+}
 #create new classifier
 predictions <- base_model$output %>%
   layer_global_average_pooling_2d(trainable = T) %>%
@@ -181,17 +198,18 @@ model %>% compile(
 
 
 
-hist <- model %>% fit_generator(
+hist <- model %>% fit(
   train_gen,
   steps_per_epoch = as.integer(length(train_raw_names)/batch_size),
-  epochs = 50,
+  epochs = 3,
   validation_data = validation_gen,
-  validation_steps = as.integer(length(test_raw_names)/batch_size),
+  validation_steps = as.integer(length(valid_raw_names)/batch_size),
   verbose=2
 )
 
 # Save Prelim Model
 #assumes your working directory is the top level project directory
 #will overwrite by default, add overwrite = FALSE if you don't want this behavior
-model %>% save_model_hdf5(paste0('./models/model_weights/ff_resnet_pres_abs_','.h5'))
+model %>% save_model_hdf5(paste0('./models/model_weights/ff_resnet_pres_abs_3_epochs','.h5'))
+
 
