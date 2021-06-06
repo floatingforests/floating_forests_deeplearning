@@ -10,11 +10,12 @@
 #
 #  Henry Houskeeper; updated 7 May 2021
 
+setwd(here::here())
 rm(list=ls())
 set.seed(137)
 
 require(raster)
-require(gitignore)
+#require(gitignore)
 require(sf)
 require(rgdal)
 
@@ -31,12 +32,12 @@ dir.create("data/presence_absence/landsat_tiles/test/yes")
 dir.create("data/presence_absence/landsat_tiles/test/no")
 
 ## Make sure tile directories are empty...
-f <- list.files("data/presence_absence/landsat_tiles/", include.dirs = F, full.names = T, recursive = T)
+f <- list.files("data/presence_absence/landsat_tiles", include.dirs = F, full.names = T, recursive = T)
 dummy <- file.remove(f)
 remove(f,dummy)
 
-gi_write_gitignore("**/temp/*")
-gi_write_gitignore("**/presence_absence/*")
+#gi_write_gitignore("**/temp/*") #only needed to be done once
+#gi_write_gitignore("**/presence_absence/*")
 
 #########################################
 load("data/presence_absence/META.RData")

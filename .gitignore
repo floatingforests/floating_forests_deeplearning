@@ -5,7 +5,6 @@ LC08*
 LE07*
 LT05*
 .Rproj.user
-<<<<<<< HEAD
 temp
 **/temp/*
 **/floating_forests_data/*
@@ -14,12 +13,11 @@ temp
 **/landsat_tiles/*
 **/presence_absence/*
 **/segmentation/*
-=======
 data/presence_absence/META.RData
 data/presence_absence/landsat_tiles/
 data/segmentation/META.RData
 data/segmentation/floating_forests_tiles/
 data/segmentation/landsat_tiles/
+.h5
 .Rhistory
 __MACOSX
->>>>>>> 2613028c96a00e8cd85a2c101031d77c07859aeb

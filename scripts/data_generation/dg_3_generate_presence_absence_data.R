@@ -10,6 +10,8 @@
 #
 # Henry Houskeeper; updated 6 May 2021
 
+setwd(here::here())
+
 rm(list=ls())
 f <- list.files("data/temp/presence_absence/landsat_data/", include.dirs = F, full.names = T, recursive = T)
 file.remove(f)
@@ -153,7 +155,7 @@ LSurls <- read.delim(file="data/Practice_Manifest.txt", header=F, sep = "\n")
 #LSurl <- "https://www.dropbox.com/sh/3c3clh6em4iyd5u/AAASKt8Bxai373CkBdX7KJG9a/practice_scenes/LC082200962017012201T1-SC20171128154358.tar.gz?dl=0"
 #LSname <- strsplit(LSurl,"[/,-]")[[1]][8]
 
-for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
+for (LSurl in LSurls[LS_FILES_TO_RUN,1]){ #make me parallel with a function
 
   f <- list.files("data/temp/LS_scene/", include.dirs = F, full.names = T, recursive = T)
   file.remove(f)
@@ -306,6 +308,9 @@ for (LSurl in LSurls[LS_FILES_TO_RUN,1]){
 
     ## plot(raster(NRG_masked_land_cloud,layer=1))
 
+
+    #above here is processing the scene
+    #below here is processing subject by subject tiles
     ## loop through each FF tile:
     j <- 0
 
