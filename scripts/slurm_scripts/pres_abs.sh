@@ -17,7 +17,10 @@
 ##SBATCH -N1
 
 # set the number of processes per node
-#SBATCH -n 8
+#SBATCH -n 10
+
+# set the memory
+#SBATCH --mem=64G   
 
 #set an account to use
 #if not used then default will be used
@@ -28,7 +31,7 @@
 ##SBATCH --gres=gpu:GTX980:4
 
 #Or can use this
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:4
 
 
 # set max wallclock time  DD-HH:MM:SS
@@ -55,8 +58,7 @@
 module load proj-7.1.0-gcc-8.4.0-sjt4ita
 module load R/4.0.3
 module load python/3.5.1
-#module load cuda/10.2 
-module load lammps/latest-stable-cuda8-gtx980-20161109 
+module load cuda/10.1-update2
 module load gdal-3.2.0-gcc-8.4.0-fpys6w7
 module load geos-3.8.1-gcc-8.4.0-awcmh22
 
