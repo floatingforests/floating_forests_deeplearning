@@ -40,7 +40,7 @@ filepath_to_label<- function(input_path){
 #set some params that will be used for creating generators
 img_width <- 352
 img_height <- 352
-batch_size <- 32
+batch_size <- 6
 n_bands <- 3
 
 #set up input and test data
@@ -183,10 +183,11 @@ model %>% compile(
 
 model %>% fit(
   train_gen,
-  steps_per_epoch = as.integer(length(landsat_val_raw_names)/batch_size),
+  batch_size = batch_size,
+#  steps_per_epoch = 2, #as.integer(length(landsat_val_raw_names)/batch_size),
   epochs = 10,
-  validation_data = validation_gen,
-  validation_steps = as.integer(length(float_val_raw_names)/batch_size)
+  validation_data = validation_gen
+ # validation_steps = 2 #as.integer(length(float_val_raw_names)/batch_size)
 )
 
 # Save Prelim Model
