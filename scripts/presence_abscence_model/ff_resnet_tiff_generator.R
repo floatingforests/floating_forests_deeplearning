@@ -82,6 +82,9 @@ valid_raw_names <- list.files(valid_input_dir,
                              recursive = T,
                              full.names = T)
 
+cat(paste(length(train_raw_names), "training images from", train_input_dir, "\n"))
+cat(paste(length(valid_raw_names), "testing images from", valid_input_dir, "\n"))
+
 #generator to take batches of tiffs and create properly structured tensors
 #input: vector of tiff paths, batch size
 #output: a list with 2 elements.
@@ -201,7 +204,7 @@ model %>% compile(
 hist <- model %>% fit(
   train_gen,
   steps_per_epoch = as.integer(length(train_raw_names)/batch_size),
-  epochs = 3,
+  epochs = 100,
   validation_data = validation_gen,
   validation_steps = as.integer(length(valid_raw_names)/batch_size),
   verbose=2
@@ -210,6 +213,7 @@ hist <- model %>% fit(
 # Save Prelim Model
 #assumes your working directory is the top level project directory
 #will overwrite by default, add overwrite = FALSE if you don't want this behavior
-model %>% save_model_hdf5(paste0('./models/fit_models/ff_resnet_pres_abs_3_epochs','.h5'))
+model %>% save_model_hdf5(paste0('./models/fit_models/ff_resnet_pres_abs_100_epochs','.h5'))
 
+saveRDS(hist, paste0('./models/fit_models/ff_resnet_pres_abs_100_epochs_history','.rds'))
 
